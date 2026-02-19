@@ -1,8 +1,15 @@
 import os
+
+# --- CRITICAL FIX FOR STREAMLIT CLOUD ---
+# This forces Google's gRPC to use the native server DNS so it doesn't get lost
+os.environ["GRPC_DNS_RESOLVER"] = "native"
+
+# Now you can safely import the rest of your libraries
 import fitz  # PyMuPDF
 import streamlit as st
 import plotly.express as px
 import pandas as pd
+from google.oauth2 import service_account
 from google.cloud import vision
 
 from google.oauth2 import service_account
@@ -257,4 +264,5 @@ with right_col:
     elif not uploaded_files:
         st.info("👈 Please drag and drop your PDFs and Images on the left.")
     else:
+
         st.info("👆 Click **Analyze All Documents** when you are ready to begin.")
