@@ -12,8 +12,9 @@ import pandas as pd
 from google.oauth2 import service_account
 from google.cloud import vision
 
-from google.oauth2 import service_account
-from google.cloud import vision
+# --- CONFIGURATION ---
+st.set_page_config(page_title="Batch OCR Dashboard", layout="wide", page_icon="📄")
+
 # --- LANGUAGE MAPS ---
 LANGUAGE_MAP = {
     'af': 'Afrikaans', 'sq': 'Albanian', 'ar': 'Arabic', 'hy': 'Armenian',
@@ -33,18 +34,6 @@ LANGUAGE_MAP = {
     'vi': 'Vietnamese'
 }
 REVERSE_LANGUAGE_MAP = {v: k for k, v in LANGUAGE_MAP.items()}
-
-# --- CONFIGURATION ---
-
-
-# ... (inside your analyze_document function where you define the client) ...
-
-# Securely load the Google credentials from Streamlit Secrets
-credentials = service_account.Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"]
-)
-client = vision.ImageAnnotatorClient(credentials=credentials)
-st.set_page_config(page_title="Batch OCR Dashboard", layout="wide", page_icon="📄")
 
 # --- CORE EXTRACTION LOGIC ---
 def extract_data_from_response(response, language_hints):
@@ -162,7 +151,6 @@ with left_col:
     hint_codes = [REVERSE_LANGUAGE_MAP[name] for name in selected_lang_names]
     
     st.write("---")
-    # UPDATED: Accept multiple files AND image formats
     uploaded_files = st.file_uploader(
         "Choose PDF or Image files", 
         type=["pdf", "jpg", "jpeg", "png"], 
@@ -173,14 +161,13 @@ with left_col:
         "🚀 Analyze All Documents", 
         type="primary", 
         use_container_width=True, 
-        disabled=not uploaded_files # Disabled if list is empty
+        disabled=not uploaded_files 
     )
 
 with right_col:
     st.subheader("2. Analysis Results")
     
     if uploaded_files and analyze_button:
-        # Grand Total Variables
         grand_total_words = 0
         grand_total_pages = 0
         aggregate_languages = {}
@@ -191,8 +178,11 @@ with right_col:
         logs = [f"> Initializing Batch Analyzer for {len(uploaded_files)} files..."]
         terminal_placeholder.code("\n".join(logs), language="bash")
         
-        # Setup API Client
-        client = vision.ImageAnnotatorClient()
+        # --- FIX: Setup API Client using Streamlit Secrets HERE ---
+        credentials = service_account.Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"]
+        )
+        client = vision.ImageAnnotatorClient(credentials=credentials)
         context = vision.ImageContext(language_hints=hint_codes) if hint_codes else None
         
         progress_bar = st.progress(0)
@@ -201,29 +191,24 @@ with right_col:
         for idx, file in enumerate(uploaded_files):
             file_bytes = file.read()
             
-            # Process the individual file
             w_count, l_counts, p_count = analyze_document(
                 file_bytes, file.name, file.type, hint_codes, 
                 client, context, logs, terminal_placeholder
             )
             
-            # Add to Grand Totals
             grand_total_words += w_count
             grand_total_pages += p_count
             for k, v in l_counts.items():
                 aggregate_languages[k] = aggregate_languages.get(k, 0) + v
             
-            # --- NEW: Calculate Prominent Language ---
             prominent_lang = "None"
             if l_counts:
-                # Filter out "Other" so we get the actual prominent human language
                 actual_langs = {k: v for k, v in l_counts.items() if "Other" not in k}
                 if actual_langs:
-                    prominent_lang = max(actual_langs, key=actual_langs.get) # Get language with max words
+                    prominent_lang = max(actual_langs, key=actual_langs.get) 
                 else:
                     prominent_lang = "Other"
                 
-            # Log for the table (Now includes Prominent Language!)
             file_results_table.append({
                 "File Name": file.name,
                 "Type": "PDF" if "pdf" in file.type else "Image",
@@ -240,8 +225,8 @@ with right_col:
         
         # --- DISPLAY RESULTS ---
         st.write("### 📁 Individual File Stats")
-        # Display as a clean, structured table
-        st.dataframe(pd.DataFrame(file_results_table),width="stretch")
+        # FIX: Dataframes use use_container_width, Plotly uses width='stretch'
+        st.dataframe(pd.DataFrame(file_results_table), use_container_width=True)
         
         st.write("### 🏆 Grand Totals")
         m1, m2 = st.columns(2)
@@ -264,5 +249,4 @@ with right_col:
     elif not uploaded_files:
         st.info("👈 Please drag and drop your PDFs and Images on the left.")
     else:
-
         st.info("👆 Click **Analyze All Documents** when you are ready to begin.")
