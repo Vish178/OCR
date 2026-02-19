@@ -226,7 +226,7 @@ with right_col:
         # --- DISPLAY RESULTS ---
         st.write("### 📁 Individual File Stats")
         # FIX: Dataframes use use_container_width, Plotly uses width='stretch'
-        st.dataframe(pd.DataFrame(file_results_table), use_container_width=True)
+        st.dataframe(pd.DataFrame(file_results_table), width='stretch')
         
         st.write("### 🏆 Grand Totals")
         m1, m2 = st.columns(2)
@@ -250,3 +250,4 @@ with right_col:
         st.info("👈 Please drag and drop your PDFs and Images on the left.")
     else:
         st.info("👆 Click **Analyze All Documents** when you are ready to begin.")
+
